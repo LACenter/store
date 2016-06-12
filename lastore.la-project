@@ -1,0 +1,17 @@
+19file=globals.pas
+20file=about.pas
+20file=dlprogress.pas
+20file=mainform.pas
+20file=proxy.pas
+20file=storelist.pas
+20file=storepass.pas
+73file=storeitem.pas
+73file=storeowner.pas
+language=Pascal
+launcherid=LA-5924989745440642333393096
+macbundle=1
+macbundle-icon=/home/xero/LA.Developer/Projects/developer/res/logo.icns
+mainfile=lastore.pas
+publish-oncompile=0
+targets=linux32,linux64,windows32,windows64,freebsd32,freebsd64,macosx
+type= UI (Advanced User Interface)

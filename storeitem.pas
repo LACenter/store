@@ -9,10 +9,11 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-uses 'globals', 'dlprogress';
+uses 'globals', 'dlprogress', 'report';
 
 var
     appItem: TLAStoreAppItem;
+    pogressDlg: TForm;
 
 //constructor of storeitem
 function storeitemCreate(Owner: TComponent; item: TLAStoreAppItem): TFrame;
@@ -29,6 +30,8 @@ var
     pop: TPopupMenu;
     menu: TMenuItem;
     i: int;
+    http: THttp;
+    fs: TFileStream;
 begin
     //Frame Constructor
 
@@ -38,7 +41,7 @@ begin
     bu.Left := 0;
     bu.Width := Sender.Width;
     bu.Height := 30;
-    bu.Top := 248 - bu.Height;
+    bu.Top := 255 - bu.Height;
     bu.Style := bbtDropDown;
     bu.Caption := 'Launch';
     bu.OnButtonClick := @storeitem_ButtonMenuClick;
@@ -53,8 +56,34 @@ begin
 
     TLabel(Sender.Find('lAppName')).Caption := appItem.AppName;
     TLabel(Sender.Find('lAppDesc')).Caption := appItem.AppDescription;
+    TPanel(Sender.Find('Panel1')).Color := clWhite;
+    TPanel(Sender.Find('Panel2')).Color := clWhite;
 
-    if appItem.AppType = atInstaller then
+    ForceDir(root+'iconCache');
+
+    http := THttp.Create;
+    if Pos('noicon.png', appItem.AppIconUrl) = 0 then
+    begin
+        if not FileExists(root+'iconCache'+DirSep+appItem.LauncherID+'.png') then
+        begin
+            try
+                fs := TFileStream.Create(root+'iconCache'+DirSep+appItem.LauncherID+'.png', fmCreate);
+                http.urlGetBinary(appItem.AppIconUrl, fs);
+                fs.free;
+                TImage(Sender.Find('Image2')).Picture.LoadFromFile(root+'iconCache'+DirSep+appItem.LauncherID+'.png');
+            except
+                deletefile(root+'iconCache'+DirSep+appItem.LauncherID+'.png');
+            end;
+        end
+            else
+            TImage(Sender.Find('Image2')).Picture.LoadFromFile(root+'iconCache'+DirSep+appItem.LauncherID+'.png');
+    end;
+
+    http.free;
+
+    //TImage(Sender.Find('Image2')).
+
+    if appItem.AppType = atDownload then
     begin
         if appItem.PriceType = ptFree then
         begin
@@ -84,6 +113,7 @@ begin
             TLabel(Sender.Find('lPrice')).Font.Size := 12;
             TLabel(Sender.Find('lPrice')).Caption := 'only $'+DoubleFormat('#,##0.00', appItem.Price)+pt;
             TImage(Sender.Find('imgFree')).Visible := false;
+            TImage(Sender.Find('imgTrial')).Visible := true;
             bu.Caption := 'Download Trial Version';
 
             menu := TMenuItem.Create(Sender);
@@ -98,7 +128,86 @@ begin
 
             menu := TMenuItem.Create(Sender);
             if appItem.PriceType <> ptOneTimePayment then
-            menu.Caption := 'Sign up for '+TLabel(Sender.Find('lPrice')).Caption
+            menu.Caption := 'Subscribe Now for '+TLabel(Sender.Find('lPrice')).Caption
+            else
+            menu.Caption := 'Buy now for '+TLabel(Sender.Find('lPrice')).Caption;
+            menu.Hint := appItem.LauncherID;
+            menu.OnClick := @storeitem_OnBuyClick;
+            pop.Items.Add(menu);
+        end;
+    end
+    else if appItem.AppType = atInstaller then
+    begin
+        if appItem.PriceType = ptFree then
+        begin
+            if DirExists(root+appItem.LauncherID) then
+            bu.Caption := 'Launch'
+            else
+            bu.Caption := 'Install';
+            menu := TMenuItem.Create(Sender);
+            menu.Caption := bu.Caption;
+            menu.Hint := bu.Hint;
+            menu.OnClick := @storeitem_MenuInstallClick;
+            pop.Items.Add(menu);
+
+            if DirExists(root+appItem.LauncherID) then
+            begin
+                menu := TMenuItem.Create(Sender);
+                menu.Caption := 'Uninstall';
+                menu.Hint := bu.Hint;
+                menu.OnClick := @storeitem_MenuUnInstallClick;
+                pop.Items.Add(menu);
+            end;
+        end
+            else
+        begin
+            if DirExists(root+appItem.LauncherID) then
+            bu.Caption := 'Launch'
+            else
+            bu.Caption := 'Install';
+
+            if appItem.PriceType = ptPerMonth then
+            pt := ' - Month';
+            if appItem.PriceType = ptPerUserPerMonth then
+            pt := ' - User/Month';
+            if appItem.PriceType = ptPerYear then
+            pt := ' - Year';
+            if appItem.PriceType = ptPerUserPerYear then
+            pt := ' - User/Year';
+            if appItem.PriceType = ptOneTimePayment then
+            pt := ' - Single Payment';
+
+            TLabel(Sender.Find('lPrice')).Visible := true;
+            //TLabel(Sender.Find('lPrice')).Font.Color := HexToColor('#ff4400');
+            TLabel(Sender.Find('lPrice')).Font.Style := fsBold;
+            TLabel(Sender.Find('lPrice')).Font.Size := 12;
+            TLabel(Sender.Find('lPrice')).Caption := 'only $'+DoubleFormat('#,##0.00', appItem.Price)+pt;
+            TImage(Sender.Find('imgFree')).Visible := false;
+            TImage(Sender.Find('imgTrial')).Visible := true;
+            bu.Caption := 'Install Trial Version';
+
+            menu := TMenuItem.Create(Sender);
+            menu.Caption := bu.Caption;
+            menu.Hint := bu.Hint;
+            menu.OnClick := @storeitem_MenuInstallClick;
+            pop.Items.Add(menu);
+
+            if DirExists(root+appItem.LauncherID) then
+            begin
+                menu := TMenuItem.Create(Sender);
+                menu.Caption := 'Uninstall';
+                menu.Hint := bu.Hint;
+                menu.OnClick := @storeitem_MenuUnInstallClick;
+                pop.Items.Add(menu);
+            end;
+
+            menu := TMenuItem.Create(Sender);
+            menu.Caption := '-';
+            pop.Items.Add(menu);
+
+            menu := TMenuItem.Create(Sender);
+            if appItem.PriceType <> ptOneTimePayment then
+            menu.Caption := 'Subscribe Now for '+TLabel(Sender.Find('lPrice')).Caption
             else
             menu.Caption := 'Buy now for '+TLabel(Sender.Find('lPrice')).Caption;
             menu.Hint := appItem.LauncherID;
@@ -140,7 +249,8 @@ begin
             TLabel(Sender.Find('lPrice')).Font.Size := 12;
             TLabel(Sender.Find('lPrice')).Caption := 'only $'+DoubleFormat('#,##0.00', appItem.Price)+pt;
             TImage(Sender.Find('imgFree')).Visible := false;
-            bu.Caption := 'Launch Free Version';
+            TImage(Sender.Find('imgTrial')).Visible := true;
+            bu.Caption := 'Launch Trial Version';
 
             menu := TMenuItem.Create(Sender);
             menu.Caption := bu.Caption;
@@ -152,41 +262,9 @@ begin
             menu.Caption := '-';
             pop.Items.Add(menu);
 
-            if appItem.AppName = 'LA.Developer' then
-            begin
-                menu := TMenuItem.Create(Sender);
-                menu.Caption := 'Get your Basic Plan for '+TLabel(Sender.Find('lPrice')).Caption;
-                menu.Hint := appItem.LauncherID;
-                menu.OnClick := @storeitem_OnBuyClick;
-                pop.Items.Add(menu);
-
-                menu := TMenuItem.Create(Sender);
-                menu.Caption := 'Get your Starter Plan for only $180.00 - User/Year';
-                menu.Hint := appItem.LauncherID;
-                menu.OnClick := @storeitem_OnBuyClick;
-                pop.Items.Add(menu);
-
-                menu := TMenuItem.Create(Sender);
-                menu.Caption := 'Get your Professional Plan for only $640.00 - User/Year';
-                menu.Hint := appItem.LauncherID;
-                menu.OnClick := @storeitem_OnBuyClick;
-                pop.Items.Add(menu);
-
-                menu := TMenuItem.Create(Sender);
-                menu.Caption := 'Get your Business Plan for only $3,400.00 - User/Year';
-                menu.Hint := appItem.LauncherID;
-                menu.OnClick := @storeitem_OnBuyClick;
-                pop.Items.Add(menu);
-
-                menu := TMenuItem.Create(Sender);
-                menu.Caption := '-';
-                pop.Items.Add(menu);
-            end
-                else
-            begin
                 menu := TMenuItem.Create(Sender);
                 if appItem.PriceType <> ptOneTimePayment then
-                menu.Caption := 'Sign up for '+TLabel(Sender.Find('lPrice')).Caption
+                menu.Caption := 'Subscribe Now for '+TLabel(Sender.Find('lPrice')).Caption
                 else
                 menu.Caption := 'Buy Now for '+TLabel(Sender.Find('lPrice')).Caption;
                 menu.Hint := appItem.LauncherID;
@@ -197,22 +275,18 @@ begin
                 menu.Caption := '-';
                 pop.Items.Add(menu);
             end;
-        end;
 
         menu := TMenuItem.Create(Sender);
-        menu.Caption := 'Create Desktop Shortcut';
+        menu.Caption := 'Add a Live Shortcut on my Desktop';
         menu.Hint := appItem.LauncherID;
         menu.OnClick := @storeitem_OnDesktopShortcutClick;
         pop.Items.Add(menu);
 
-        if not FreeBSD then
-        begin
-            menu := TMenuItem.Create(Sender);
-            menu.Caption := 'Create Start Menu Shortcut';
-            menu.Hint := appItem.LauncherID;
-            menu.OnClick := @storeitem_OnStartMenuShortcutClick;
-            pop.Items.Add(menu);
-        end;
+        menu := TMenuItem.Create(Sender);
+        menu.Caption := 'Add a Live Shortcut in my Start Menu';
+        menu.Hint := appItem.LauncherID;
+        menu.OnClick := @storeitem_OnStartMenuShortcutClick;
+        pop.Items.Add(menu);
     end;
 
     if (appItem.SupportEmail <> '')  or
@@ -241,15 +315,15 @@ begin
         end;
     end;
 
-    {menu := TMenuItem.Create(Sender);
+    menu := TMenuItem.Create(Sender);
     menu.Caption := '-';
     pop.Items.Add(menu);
 
     menu := TMenuItem.Create(Sender);
-    menu.Caption := 'Report this App';
+    menu.Caption := 'Report this Application';
     menu.Hint := appItem.LauncherID;
     menu.OnClick := @storeitem_OnReportClick;
-    pop.Items.Add(menu);}
+    pop.Items.Add(menu);
 
     _storeFonts(Sender);
 
@@ -259,14 +333,86 @@ begin
 end;
 
 procedure storeitem_OnReportClick(Sender: TMenuItem);
+var
+    f: TForm;
+    i: int;
 begin
+    for i := 0 to store.Stores[storeIndex].ApplicationCount -1 do
+    begin
+        if store.Stores[storeIndex].Applications[i].LauncherID = Sender.Hint then
+        begin
+            f := reportCreate(Application.MainForm, store.Stores[storeIndex].Applications[i].LauncherID);
+            f.ShowModalDimmed;
+            break;
+        end;
+    end;
+end;
 
+procedure storeitem_MenuUnInstallClick(Sender: TMenuItem);
+var
+    i: int;
+begin
+    if MsgWarning('Warning', 'You are about to uninstall an application, continue?') then
+    begin
+        for i := 0 to store.Stores[storeIndex].ApplicationCount -1 do
+        begin
+            if store.Stores[storeIndex].Applications[i].LauncherID = Sender.Hint then
+            begin
+                ForceDeleteDir(root+store.Stores[storeIndex].Applications[i].LauncherID);
+                wait(1000);
+                _PopulateApps;
+                break;
+            end;
+        end;
+    end;
+end;
+
+procedure DataReceived(Sender: TLAStore; bytesReceived, totalBytes: int64);
+begin
+    try
+        TProgressBar(pogressDlg.Find('ProgressBar1')).Max := totalBytes;
+        TProgressBar(pogressDlg.Find('ProgressBar1')).Position := bytesReceived;
+        TLabel(pogressDlg.Find('Label2')).Caption :=
+            DoubleFormat('#,##0.00', (bytesReceived / 1024) / 1024)+' of '+
+            DoubleFormat('#,##0.00', (totalBytes / 1024) / 1024)+' MB';
+    except end;
+end;
+
+procedure storeitem_MenuInstallClick(Sender: TMenuItem);
+var
+    i: int;
+begin
+    for i := 0 to store.Stores[storeIndex].ApplicationCount -1 do
+    begin
+        if store.Stores[storeIndex].Applications[i].LauncherID = Sender.Hint then
+        begin
+            store.OnDataReceived := @DataReceived;
+
+            if Sender.Caption = 'Install' then
+            begin
+                pogressDlg := dlprogressCreate(Sender.Owner);
+                pogressDlg.Show;
+                Application.ProcessMessages;
+            end;
+
+            store.Stores[storeIndex].Applications[i].RunInstallerApplication(root);
+
+            if Sender.Caption = 'Install' then
+            begin
+                wait(1000);
+                _PopulateApps;
+                Application.ProcessMessages;
+                pogressDlg.free;
+            end;
+
+            break;
+        end;
+    end;
 end;
 
 procedure storeitem_MenuDownloadClick(Sender: TMenuItem);
 var
     i: int;
-    dlg: TForm;
 begin
     for i := 0 to store.Stores[storeIndex].ApplicationCount -1 do
     begin
@@ -277,15 +423,17 @@ begin
                 store.Stores[storeIndex].Applications[i].AppName+'.zip';
             if TSaveDialog(Sender.Owner.Find('SD')).Execute then
             begin
-                dlg := dlprogressCreate(Sender.Owner);
-                dlg.Show;
+                store.OnDataReceived := @DataReceived;
+
+                pogressDlg := dlprogressCreate(Sender.Owner);
+                pogressDlg.Show;
                 Application.ProcessMessages;
 
                 store.Stores[storeIndex].Applications[i].Download(
                     TSaveDialog(Sender.Owner.Find('SD')).FileName);
 
                 Application.ProcessMessages;
-                dlg.free;
+                pogressDlg.free;
             end;
             break;
         end;
@@ -415,7 +563,7 @@ begin
                     store.Stores[storeIndex].Applications[i].AppName,
                     iconFile,
                     store.Stores[storeIndex].Applications[i].AppDescription,
-                    '',
+                    'LA.Store;Other',
                     slStartMenu
                 );
             end;
@@ -460,7 +608,6 @@ end;
 procedure storeitem_ButtonClick(Sender: TBGRAButton);
 var
     i: int;
-    dlg: TForm;
 begin
     for i := 0 to store.Stores[storeIndex].ApplicationCount -1 do
     begin
@@ -468,20 +615,44 @@ begin
         begin
             if store.Stores[storeIndex].Applications[i].AppType = atInstaller then
             begin
+                store.OnDataReceived := @DataReceived;
+
+                if Sender.Caption = 'Install' then
+                begin
+                    pogressDlg := dlprogressCreate(Sender.Owner);
+                    pogressDlg.Show;
+                    Application.ProcessMessages;
+                end;
+
+                store.Stores[storeIndex].Applications[i].RunInstallerApplication(root);
+
+
+                if Sender.Caption = 'Install' then
+                begin
+                    wait(1000);
+                    _PopulateApps;
+                    Application.ProcessMessages;
+                    pogressDlg.free;
+                end;
+            end
+            else if store.Stores[storeIndex].Applications[i].AppType = atDownload then
+            begin
                 TSaveDialog(Sender.Owner.Find('SD')).InitialDir := UserDir+'Downloads';
                 TSaveDialog(Sender.Owner.Find('SD')).FileName :=
                     store.Stores[storeIndex].Applications[i].AppName+'.zip';
                 if TSaveDialog(Sender.Owner.Find('SD')).Execute then
                 begin
-                    dlg := dlprogressCreate(Sender.Owner);
-                    dlg.Show;
+                    store.OnDataReceived := @DataReceived;
+
+                    pogressDlg := dlprogressCreate(Sender.Owner);
+                    pogressDlg.Show;
                     Application.ProcessMessages;
 
                     store.Stores[storeIndex].Applications[i].Download(
                         TSaveDialog(Sender.Owner.Find('SD')).FileName);
 
                     Application.ProcessMessages;
-                    dlg.free;
+                    pogressDlg.free;
                 end;
             end
             else

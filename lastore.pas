@@ -21,12 +21,15 @@ var
 procedure AppException(Sender: TObject; E: Exception);
 begin
     //Uncaught Exceptions
-    MsgError('Error', E.Message);
+    //MsgError('Error', E.Message);
 end;
 
 //lastore initialization constructor
 constructor
 begin
+    //delete if any old version exists
+    deletefile(ArgumentByIndex(0)+'-old');
+
     v := DoubleToStr(VERSION);
     for i := Len(v) downto 1 do
     begin
@@ -56,3 +59,4 @@ end.
 //$res:about=[project-home]about.pas.frm
 //$res:storeowner=[project-home]storeowner.pas.frm
 //$res:proxy=[project-home]proxy.pas.frm
+//$res:report=[project-home]report.pas.frm

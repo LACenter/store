@@ -67,6 +67,11 @@ begin
     bu.BodyClicked.Gradient2.EndColor := HexToColor('#ff6600');
 end;
 
+procedure _PopulateApps();
+begin
+    TSimpleAction(application.MainForm.Find('actPopulateApp')).Execute;
+end;
+
 procedure _storeFonts(comp: TComponent);
 var
     i: int;

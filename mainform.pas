@@ -44,7 +44,7 @@ begin
     status.BorderSpacing.Top := 15;
 
     TScrollBox(Sender.Find('scroller')).ChildSizing.LeftRightSpacing := 10;
-    TScrollBox(Sender.Find('scroller')).ChildSizing.TopBottomSpacing := 0;
+    TScrollBox(Sender.Find('scroller')).ChildSizing.TopBottomSpacing := 10;
     TScrollBox(Sender.Find('scroller')).ChildSizing.HorizontalSpacing := 10;
     TScrollBox(Sender.Find('scroller')).ChildSizing.VerticalSpacing := 10;
     TScrollBox(Sender.Find('scroller')).ChildSizing.Layout := cclLeftToRightThenTopToBottom;
@@ -147,6 +147,7 @@ begin
 
     //note: DESIGNER TAG => DO NOT REMOVE!
     //<events-bind>
+    TSimpleAction(Sender.find('actPopulateApp')).OnExecute := @mainform_actPopulateApp_OnExecute;
     TTimer(Sender.find('startTimer')).OnTimer := @mainform_startTimer_OnTimer;
     TTimer(Sender.find('spinTimer')).OnTimer := @mainform_spinTimer_OnTimer;
     Sender.OnResize := @mainform_OnResize;
@@ -245,7 +246,13 @@ procedure populateApps();
 var
     i, j: int;
     fr: TFrame;
+    skip: bool = false;
 begin
+    for i := scroller.ComponentCount -1 downto 0 do
+        try scroller.Components[i].free except end;
+
+    wait(500);
+
     for i := scroller.ComponentCount -1 downto 0 do
         try scroller.Components[i].free except end;
 
@@ -257,13 +264,36 @@ begin
 
             for j := 0 to store.Stores[i].ApplicationCount -1 do
             begin
-                fr := storeitemCreate(scroller, store.Stores[i].Applications[j]);
-                fr.Parent := scroller;
-                fr.Constraints.MinWidth := 260;
-                fr.Constraints.MinHeight := 260;
-                fr.Constraints.MaxWidth := 260;
-                fr.Constraints.MaxHeight := 260;
-                fr.Color := HexToColor('#f0f0f0');
+                skip := false;
+
+                if store.Stores[i].Applications[j].DisableAndroid then skip := true;
+
+                if LINUX and CPUARM and store.Stores[i].Applications[j].DisableLinuxPI then skip := true;
+                if LINUX and CPU32 and store.Stores[i].Applications[j].DisableLinux32 then skip := true;
+                if LINUX and CPU64 and store.Stores[i].Applications[j].DisableLinux64 then skip := true;
+
+                if WINDOWS and CPUARM and store.Stores[i].Applications[j].DisableWindowsCE then skip := true;
+                if WINDOWS and CPU32 and store.Stores[i].Applications[j].DisableWindows32 then skip := true;
+                if WINDOWS and CPU64 and store.Stores[i].Applications[j].DisableWindows64 then skip := true;
+
+                if FREEBSD and CPU32 and store.Stores[i].Applications[j].DisableFreeBSD32 then skip := true;
+                if FREEBSD and CPU64 and store.Stores[i].Applications[j].DisableFreeBSD64 then skip := true;
+
+                if OSX and CPU32 and store.Stores[i].Applications[j].DisableMacOSX then skip := true;
+                if OSX and CPU64 and store.Stores[i].Applications[j].DisableMacOSX then skip := true;
+
+                if not skip then
+                begin
+                    fr := storeitemCreate(scroller, store.Stores[i].Applications[j]);
+                    fr.Parent := scroller;
+                    fr.Constraints.MinWidth := 260;
+                    fr.Constraints.MinHeight := 260;
+                    fr.Constraints.MaxWidth := 260;
+                    fr.Constraints.MaxHeight := 260;
+                    fr.Color := HexToColor('#f0f0f0');
+                    TPanel(fr.Find('Panel1')).Color := clWhite;
+                    TPanel(fr.Find('Panel2')).Color := clWhite;
+                end;
             end;
 
             break;
@@ -298,6 +328,11 @@ procedure mainform_startTimer_OnTimer(Sender: TTimer);
 begin
     Sender.Enabled := false;
     populateStores(storeIndex);
+end;
+
+procedure mainform_actPopulateApp_OnExecute(Sender: TSimpleAction);
+begin
+    populateApps;
 end;
 
 //<events-code> - note: DESIGNER TAG => DO NOT REMOVE!

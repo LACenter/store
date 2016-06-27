@@ -3,6 +3,7 @@
 20file=dlprogress.pas
 20file=mainform.pas
 20file=proxy.pas
+20file=report.pas
 20file=storelist.pas
 20file=storepass.pas
 73file=storeitem.pas

@@ -141,28 +141,21 @@ begin
         if appItem.PriceType = ptFree then
         begin
             if DirExists(root+appItem.LauncherID) then
-            bu.Caption := 'Launch'
+            bu.Caption := 'Remove'
             else
             bu.Caption := 'Install';
+
             menu := TMenuItem.Create(Sender);
             menu.Caption := bu.Caption;
+            menu.Name := 'mInstaller';
             menu.Hint := bu.Hint;
             menu.OnClick := @storeitem_MenuInstallClick;
             pop.Items.Add(menu);
-
-            if DirExists(root+appItem.LauncherID) then
-            begin
-                menu := TMenuItem.Create(Sender);
-                menu.Caption := 'Uninstall';
-                menu.Hint := bu.Hint;
-                menu.OnClick := @storeitem_MenuUnInstallClick;
-                pop.Items.Add(menu);
-            end;
         end
             else
         begin
             if DirExists(root+appItem.LauncherID) then
-            bu.Caption := 'Launch'
+            bu.Caption := 'Remove'
             else
             bu.Caption := 'Install';
 
@@ -189,17 +182,9 @@ begin
             menu := TMenuItem.Create(Sender);
             menu.Caption := bu.Caption;
             menu.Hint := bu.Hint;
+            menu.Name := 'mInstaller';
             menu.OnClick := @storeitem_MenuInstallClick;
             pop.Items.Add(menu);
-
-            if DirExists(root+appItem.LauncherID) then
-            begin
-                menu := TMenuItem.Create(Sender);
-                menu.Caption := 'Uninstall';
-                menu.Hint := bu.Hint;
-                menu.OnClick := @storeitem_MenuUnInstallClick;
-                pop.Items.Add(menu);
-            end;
 
             menu := TMenuItem.Create(Sender);
             menu.Caption := '-';
@@ -348,25 +333,6 @@ begin
     end;
 end;
 
-procedure storeitem_MenuUnInstallClick(Sender: TMenuItem);
-var
-    i: int;
-begin
-    if MsgWarning('Warning', 'You are about to uninstall an application, continue?') then
-    begin
-        for i := 0 to store.Stores[storeIndex].ApplicationCount -1 do
-        begin
-            if store.Stores[storeIndex].Applications[i].LauncherID = Sender.Hint then
-            begin
-                ForceDeleteDir(root+store.Stores[storeIndex].Applications[i].LauncherID);
-                wait(1000);
-                _PopulateApps;
-                break;
-            end;
-        end;
-    end;
-end;
-
 procedure DataReceived(Sender: TLAStore; bytesReceived, totalBytes: int64);
 begin
     try
@@ -386,25 +352,28 @@ begin
     begin
         if store.Stores[storeIndex].Applications[i].LauncherID = Sender.Hint then
         begin
-            store.OnDataReceived := @DataReceived;
-
             if Sender.Caption = 'Install' then
             begin
+                store.OnDataReceived := @DataReceived;
+
                 pogressDlg := dlprogressCreate(Sender.Owner);
                 pogressDlg.Show;
                 Application.ProcessMessages;
-            end;
 
-            store.Stores[storeIndex].Applications[i].RunInstallerApplication(root);
+                store.Stores[storeIndex].Applications[i].RunInstallerApplication(root);
 
-            if Sender.Caption = 'Install' then
-            begin
-                wait(1000);
-                _PopulateApps;
                 Application.ProcessMessages;
                 pogressDlg.free;
-            end;
 
+                TBGRAButton(Sender.Owner.Find('bLaunch')).Caption := 'Remove';
+                Sender.Caption := 'Remove';
+            end
+                else
+            begin
+                ForceDeleteDir(root+store.Stores[storeIndex].Applications[i].LauncherID);
+                Sender.Caption := 'Install';
+                TBGRAButton(Sender.Owner.Find('bLaunch')).Caption := 'Install';
+            end;
             break;
         end;
     end;
@@ -622,17 +591,20 @@ begin
                     pogressDlg := dlprogressCreate(Sender.Owner);
                     pogressDlg.Show;
                     Application.ProcessMessages;
-                end;
 
-                store.Stores[storeIndex].Applications[i].RunInstallerApplication(root);
+                    store.Stores[storeIndex].Applications[i].RunInstallerApplication(root);
 
-
-                if Sender.Caption = 'Install' then
-                begin
-                    wait(1000);
-                    _PopulateApps;
                     Application.ProcessMessages;
                     pogressDlg.free;
+
+                    Sender.Caption := 'Remove';
+                    TMenuItem(Sender.Owner.Find('mInstaller')).Caption := 'Remove';
+                end
+                    else
+                begin
+                    ForceDeleteDir(root+store.Stores[storeIndex].Applications[i].LauncherID);
+                    Sender.Caption := 'Install';
+                    TMenuItem(Sender.Owner.Find('mInstaller')).Caption := 'Install';
                 end;
             end
             else if store.Stores[storeIndex].Applications[i].AppType = atDownload then

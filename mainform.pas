@@ -247,6 +247,7 @@ var
     i, j: int;
     fr: TFrame;
     skip: bool = false;
+    tmp: string;
 begin
     for i := scroller.ComponentCount -1 downto 0 do
         try scroller.Components[i].free except end;
@@ -255,6 +256,14 @@ begin
 
     for i := scroller.ComponentCount -1 downto 0 do
         try scroller.Components[i].free except end;
+
+    tmp := status.Caption;
+
+    if not DirExists(root+'iconCache') then
+    begin
+        startSpinner;
+        status.Caption := 'populating catalog for the first time, please wait...';
+    end;
 
     for i := 0 to store.StoreCount -1 do
     begin
@@ -293,12 +302,16 @@ begin
                     fr.Color := HexToColor('#f0f0f0');
                     TPanel(fr.Find('Panel1')).Color := clWhite;
                     TPanel(fr.Find('Panel2')).Color := clWhite;
+                    Application.ProcessMessages;
                 end;
             end;
 
             break;
         end;
     end;
+
+    stopSpinner;
+    status.Caption := tmp;
 end;
 
 procedure populateStores(index: int);

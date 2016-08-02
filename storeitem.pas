@@ -22,6 +22,11 @@ begin
     result := TFrame.CreateWithConstructorFromResource(Owner, @storeitem_OnCreate, 'storeitem');
 end;
 
+procedure httpBytesImages(Sender: THttp; BytesReceived, TotalBytes: int64);
+begin
+    Application.ProcessMessages;
+end;
+
 //OnCreate Event of storeitem
 procedure storeitem_OnCreate(Sender: TFrame);
 var
@@ -62,6 +67,7 @@ begin
     ForceDir(root+'iconCache');
 
     http := THttp.Create;
+    http.onBytesReceived := @httpBytesImages;
     if Pos('noicon.png', appItem.AppIconUrl) = 0 then
     begin
         if not FileExists(root+'iconCache'+DirSep+appItem.LauncherID+'.png') then
@@ -76,9 +82,13 @@ begin
             end;
         end
             else
-            TImage(Sender.Find('Image2')).Picture.LoadFromFile(root+'iconCache'+DirSep+appItem.LauncherID+'.png');
+        begin
+            try
+                TImage(Sender.Find('Image2')).Picture.LoadFromFile(root+'iconCache'+DirSep+appItem.LauncherID+'.png');
+            except
+            end;
+        end;
     end;
-
     http.free;
 
     //TImage(Sender.Find('Image2')).
@@ -177,7 +187,7 @@ begin
             TLabel(Sender.Find('lPrice')).Caption := 'only $'+DoubleFormat('#,##0.00', appItem.Price)+pt;
             TImage(Sender.Find('imgFree')).Visible := false;
             TImage(Sender.Find('imgTrial')).Visible := true;
-            bu.Caption := 'Install Trial Version';
+            bu.Caption := 'Install';
 
             menu := TMenuItem.Create(Sender);
             menu.Caption := bu.Caption;
@@ -235,7 +245,7 @@ begin
             TLabel(Sender.Find('lPrice')).Caption := 'only $'+DoubleFormat('#,##0.00', appItem.Price)+pt;
             TImage(Sender.Find('imgFree')).Visible := false;
             TImage(Sender.Find('imgTrial')).Visible := true;
-            bu.Caption := 'Launch Trial Version';
+            bu.Caption := 'Launch';
 
             menu := TMenuItem.Create(Sender);
             menu.Caption := bu.Caption;
@@ -354,25 +364,33 @@ begin
         begin
             if Sender.Caption = 'Install' then
             begin
-                store.OnDataReceived := @DataReceived;
+                if MsgQuestion('Please Confirm', 'You are about to install an application, continue?') then
+                begin
+                    store.OnDataReceived := @DataReceived;
 
-                pogressDlg := dlprogressCreate(Sender.Owner);
-                pogressDlg.Show;
-                Application.ProcessMessages;
+                    pogressDlg := dlprogressCreate(Sender.Owner);
+                    pogressDlg.Show;
+                    Application.MainForm.Enabled := false;
+                    Application.ProcessMessages;
 
-                store.Stores[storeIndex].Applications[i].RunInstallerApplication(root);
+                    store.Stores[storeIndex].Applications[i].RunInstallerApplication(root);
 
-                Application.ProcessMessages;
-                pogressDlg.free;
+                    Application.ProcessMessages;
+                    pogressDlg.free;
+                    Application.MainForm.Enabled := true;
 
-                TBGRAButton(Sender.Owner.Find('bLaunch')).Caption := 'Remove';
-                Sender.Caption := 'Remove';
+                    TBGRAButton(Sender.Owner.Find('bLaunch')).Caption := 'Remove';
+                    Sender.Caption := 'Remove';
+                end;
             end
                 else
             begin
-                ForceDeleteDir(root+store.Stores[storeIndex].Applications[i].LauncherID);
-                Sender.Caption := 'Install';
-                TBGRAButton(Sender.Owner.Find('bLaunch')).Caption := 'Install';
+                if MsgWarning('Warning', 'You are about to remove an application, continue?') then
+                begin
+                    ForceDeleteDir(root+store.Stores[storeIndex].Applications[i].LauncherID);
+                    Sender.Caption := 'Install';
+                    TBGRAButton(Sender.Owner.Find('bLaunch')).Caption := 'Install';
+                end;
             end;
             break;
         end;
@@ -396,6 +414,7 @@ begin
 
                 pogressDlg := dlprogressCreate(Sender.Owner);
                 pogressDlg.Show;
+                Application.MainForm.Enabled := false;
                 Application.ProcessMessages;
 
                 store.Stores[storeIndex].Applications[i].Download(
@@ -403,6 +422,7 @@ begin
 
                 Application.ProcessMessages;
                 pogressDlg.free;
+                Application.MainForm.Enabled := true;
             end;
             break;
         end;
@@ -584,27 +604,35 @@ begin
         begin
             if store.Stores[storeIndex].Applications[i].AppType = atInstaller then
             begin
-                store.OnDataReceived := @DataReceived;
-
                 if Sender.Caption = 'Install' then
                 begin
-                    pogressDlg := dlprogressCreate(Sender.Owner);
-                    pogressDlg.Show;
-                    Application.ProcessMessages;
+                    if MsgQuestion('Please Confirm', 'You are about to install an application, continue?') then
+                    begin
+                        store.OnDataReceived := @DataReceived;
 
-                    store.Stores[storeIndex].Applications[i].RunInstallerApplication(root);
+                        pogressDlg := dlprogressCreate(Sender.Owner);
+                        pogressDlg.Show;
+                        Application.MainForm.Enabled := false;
+                        Application.ProcessMessages;
 
-                    Application.ProcessMessages;
-                    pogressDlg.free;
+                        store.Stores[storeIndex].Applications[i].RunInstallerApplication(root);
 
-                    Sender.Caption := 'Remove';
-                    TMenuItem(Sender.Owner.Find('mInstaller')).Caption := 'Remove';
+                        Application.ProcessMessages;
+                        pogressDlg.free;
+                        Application.MainForm.Enabled := true;
+
+                        Sender.Caption := 'Remove';
+                        TMenuItem(Sender.Owner.Find('mInstaller')).Caption := 'Remove';
+                    end;
                 end
                     else
                 begin
-                    ForceDeleteDir(root+store.Stores[storeIndex].Applications[i].LauncherID);
-                    Sender.Caption := 'Install';
-                    TMenuItem(Sender.Owner.Find('mInstaller')).Caption := 'Install';
+                    if MsgWarning('Warning', 'You are about to remove an application, continue?') then
+                    begin
+                        ForceDeleteDir(root+store.Stores[storeIndex].Applications[i].LauncherID);
+                        Sender.Caption := 'Install';
+                        TMenuItem(Sender.Owner.Find('mInstaller')).Caption := 'Install';
+                    end;
                 end;
             end
             else if store.Stores[storeIndex].Applications[i].AppType = atDownload then
@@ -618,6 +646,7 @@ begin
 
                     pogressDlg := dlprogressCreate(Sender.Owner);
                     pogressDlg.Show;
+                    Application.MainForm.Enabled := false;
                     Application.ProcessMessages;
 
                     store.Stores[storeIndex].Applications[i].Download(
@@ -625,6 +654,7 @@ begin
 
                     Application.ProcessMessages;
                     pogressDlg.free;
+                    Application.MainForm.Enabled := true;
                 end;
             end
             else
